@@ -734,9 +734,12 @@ function calcOiAstram(inputMin,byArr=false){
     const isRoute1=!!(dPair&&dPair[3]==='1');
     if(!nPair)return{dep:toMin(dPair[0]),arr:toMin(dPair[1]),via:'direct',lineName,isRoute1};
     if(!dPair)return{dep:toMin(nPair[0]),arr:toMin(nPair[1])+10,via:'numata',lineName:'',isRoute1:false};
-    return(toMin(dPair[0])-aArr<=30)
-      ?{dep:toMin(dPair[0]),arr:toMin(dPair[1]),via:'direct',lineName,isRoute1}
-      :{dep:toMin(nPair[0]),arr:toMin(nPair[1])+10,via:'numata',lineName:'',isRoute1:false};
+    // 到着時刻を比較して早い方を選ぶ（直通はdPair[1]、沼田はnPair[1]+10分徒歩）
+    const dArr=toMin(dPair[1]);
+    const nArr=toMin(nPair[1])+10;
+    return(dArr<=nArr)
+      ?{dep:toMin(dPair[0]),arr:dArr,via:'direct',lineName,isRoute1}
+      :{dep:toMin(nPair[0]),arr:nArr,via:'numata',lineName:'',isRoute1:false};
   }
   if(!byArr){
     const astOi=getAstramOiArr(inputMin);if(!astOi)return null;
@@ -758,7 +761,7 @@ function calcOiAstram(inputMin,byArr=false){
         {type:'depart',station:'アストラム毘沙門台駅',time:fromMin(aMin)},
         {type:'transport',kind:'astram',name:'🚃 アストラムライン',route:'毘沙門台駅 → 大塚駅',time:`${fromMin(aMin)}発→${fromMin(aArr)}着`,wait:null,dep:fromMin(aMin)},
         {type:'station',station:'大塚駅',time:fromMin(aArr)},
-        {type:'transport',kind:'walk',name:'🚶 徒歩',route:'バス停 → 大塚駅バス停',time:'約2〜3分',wait:`${gw.dep-aArr}分`,earlyBusInfo:(!useNumata&&gw.dep===8*60+39)?'市大行き8:31あり':null,earlyBusHint:walkEarlyHint,lineName:(!useNumata&&lineName)?lineName:null},
+        {type:'transport',kind:'walk',name:'🚶 徒歩',route:'バス停 → 大塚駅バス停',time:'約2〜3分',wait:`${gw.dep-aArr}分`,earlyBusInfo:null,earlyBusHint:walkEarlyHint,lineName:(!useNumata&&lineName)?lineName:null},
         {type:'station',station:'大塚駅バス停',time:fromMin(gw.dep)},
         {type:'transport',kind:'bus',
           name:busName,
@@ -818,9 +821,12 @@ function calcOi(inputMin,byArr=false){
     const lineName=dPair&&dPair[3]==='202'?'西風みなとライン':'';
     if(!nPair)return{dep:toMin(dPair[0]),arr:toMin(dPair[1]),via:'direct',lineName};
     if(!dPair)return{dep:toMin(nPair[0]),arr:toMin(nPair[1])+10,via:'numata',lineName:''};
-    return(toMin(dPair[0])-aArr<=30)
-      ?{dep:toMin(dPair[0]),arr:toMin(dPair[1]),via:'direct',lineName}
-      :{dep:toMin(nPair[0]),arr:toMin(nPair[1])+10,via:'numata',lineName:''};
+    // 到着時刻を比較して早い方を選ぶ
+    const dArr2=toMin(dPair[1]);
+    const nArr2=toMin(nPair[1])+10;
+    return(dArr2<=nArr2)
+      ?{dep:toMin(dPair[0]),arr:dArr2,via:'direct',lineName}
+      :{dep:toMin(nPair[0]),arr:nArr2,via:'numata',lineName:''};
   }
   if(!byArr){
     const bus3=busList.find(([d])=>toMin(d)>=inputMin);
@@ -875,8 +881,7 @@ function makeOiResult(b3dep,b3arr,b3ten,aMin,aArr,gMin,gArr,useNumata=false,line
         route:useNumata?'大塚駅 → 沼田料金所前':'大塚駅 → 市立大学前',
         time:useNumata?`${fromMin(gMin)}発→${fromMin(gMin+1)}着`:`${fromMin(gMin)}発→${fromMin(gArr)}着`,
         wait:null,dep:fromMin(gMin),
-        route修Name:(!useNumata&&destBadge==='修')?'①広島修道大学・免許センター五日市方面利用':null,
-        stop:useNumata?'⚠️ 沼田料金所前下車（徒歩10分）':destBadge==='修'?'🚌 大塚駅下車':'🏫 市立大学前'},
+        stop:useNumata?'⚠️ 沼田料金所前下車（徒歩10分）':'🏫 市立大学前'},
       {type:'arrive',station:'市立大学前',time:fromMin(gArr)},
     ]
   };
@@ -1104,7 +1109,7 @@ function renderRoute(r,inline=false,_routeIdx=-1){
           <div class="step-transport ${s.kind}">
             ${s.kind!=='walk'?`<div class="t-name">${s.name}${s.lineName?`<span style="margin-left:6px;font-size:10px;font-weight:700;color:var(--primary);background:rgba(0,0,0,.06);padding:1px 5px;border-radius:4px;">西風みなとライン（ジアウトレット・アルパーク・広島港桟橋行き）</span>`:''}${s.route1Name?`<span style="margin-left:6px;font-size:16px;font-weight:900;color:#e8500a;">${s.route1Name}</span>`:''}` +'</div>':''}
             ${s['route修Name']?`<div style="font-size:15px;font-weight:900;color:#e8500a;margin-top:2px;">${s['route修Name']}</div>`:''}
-            ${s.kind!=='walk'?(s.nextAstramHint?`<div class="t-route" style="color:#e8500a;font-weight:900;font-size:12px;">次のアトムは<span style="font-size:15px;">${s.nextAstramHint.dep}</span>発－毘沙門台<span style="font-size:15px;">${s.nextAstramHint.arr}</span>着です</div>`:(s.kind==='bus'||s.kind==='astram'?'':`<div class="t-route">${s.route}　${s.time}</div>`)):''}            ${s.wait?`<div class="t-wait">${s.isNumataWalk?`<span style="font-size:14px;font-weight:900;color:#e8500a;">徒歩 ${s.wait}</span>`:`<span style="font-size:11px;font-weight:700;color:#e8500a;">乗換時間</span> ${s.wait}`}${s.earlyBusInfo?`<span style="margin-left:8px;font-size:12px;font-weight:700;color:var(--primary);">（${s.earlyBusInfo}）</span>`:''}${s.earlyBusHint?(typeof s.earlyBusHint==='object'&&s.earlyBusHint.route1Special?`<div style="margin-top:4px;font-size:12px;font-weight:700;color:#e8500a;">①アウトレット市大行きバス${s.earlyBusHint.dep}発（${s.earlyBusHint.wait}分）もあり</div>`:`<div style="margin-top:4px;font-size:11px;font-weight:700;color:var(--sub);">⚡ ${s.earlyBusHint}もあります</div>`):''}${s.lineName?`<span style="margin-left:8px;font-size:11px;font-weight:700;color:var(--primary);">🚌 ${s.lineName}</span>`:''}</div>`:''}
+            ${s.kind!=='walk'?(s.nextAstramHint?`<div class="t-route" style="color:#e8500a;font-weight:900;font-size:12px;">次のアトムは<span style="font-size:15px;">${s.nextAstramHint.dep}</span>発－毘沙門台<span style="font-size:15px;">${s.nextAstramHint.arr}</span>着です</div>`:(s.kind==='bus'||s.kind==='astram'?'':`<div class="t-route">${s.route}　${s.time}</div>`)):''}            ${s.wait?`<div class="t-wait">${s.isNumataWalk?`<span style="font-size:14px;font-weight:900;color:#e8500a;">徒歩 ${s.wait}</span>`:`<span style="font-size:11px;font-weight:700;color:#e8500a;">のりかえ</span> ${s.wait}`}${s.earlyBusHint?(typeof s.earlyBusHint==='object'&&s.earlyBusHint.route1Special?`<div style="margin-top:4px;font-size:12px;font-weight:700;color:#e8500a;">①アウトレット→市大行きバス<span style="font-size:15px;font-weight:900;">8:31</span>発（${s.earlyBusHint.wait}分）もあり</div>`:`<div style="margin-top:4px;font-size:11px;font-weight:700;color:var(--sub);">⚡ ${s.earlyBusHint}もあります</div>`):''}${s.lineName?`<span style="margin-left:8px;font-size:11px;font-weight:700;color:var(--primary);">🚌 ${s.lineName}</span>`:''}</div>`:''}
             ${s.stop?`<div class="t-stop">${s.stop}</div>`:''}
           </div>
         </div></div>`;
@@ -1289,7 +1294,7 @@ function renderHourList(routes, area){
   // 方向ごとにヘッダー行を追加
   if(direction==='oi'){
     html+=`<div class="hour-row-header">
-      <span class="col-dep-badge"></span><span class="col-dep-time">3丁目バス発</span>
+      <span class="col-dep-badge"></span><span class="col-dep-time">3丁目<br>バス発</span>
       <span class="col-mid2">アト毘沙門発</span>
       <span class="col-mid">大塚着</span>
       <span class="col-arr">バス大塚発</span>
@@ -1298,26 +1303,26 @@ function renderHourList(routes, area){
     </div>`;
   } else if(direction==='oi_astram'){
     html+=`<div class="hour-row-header">
-      <span class="col-dep-badge"></span><span class="col-dep-time" style="font-size:11px;font-weight:900;color:#111;">アトム毘沙門発</span>
+      <span class="col-dep-badge"></span><span class="col-dep-time" style="font-size:11px;font-weight:900;color:#111;">アトム<br>毘沙門発</span>
       <span class="col-mid2">アトム大塚着</span>
       <span class="col-mid">バス大塚発</span>
       <span class="col-arr2" style="font-size:11px;font-weight:900;color:#111;">市大着</span>
-      <span class="col-dur-cell">所要</span>
+      <span class="col-dur-cell" style="padding-left:8px;">所要</span>
     </div>`;
   } else if(direction==='kaeri_astram'){
     html+=`<div class="hour-row-header">
       <span class="col-dep-badge"></span><span class="col-dep-badge2"></span><span class="col-dep-time" style="font-size:11px;font-weight:900;color:#111;">帰りバス</span>
-      <span class="col-mid2" style="font-size:11px;font-weight:900;color:#333;">アトム大塚駅発</span>
+      <span class="col-mid2" style="font-size:11px;font-weight:900;color:#333;">アトム大塚発</span>
       <span class="col-arr2" style="font-size:11px;font-weight:900;color:#333;">アトム毘沙門着</span>
-      <span class="col-dur-cell">所要</span>
+      <span class="col-dur-cell" style="padding-left:8px;">所要</span>
     </div>`;
   } else if(direction==='kaeri_3chome'){
     html+=`<div class="hour-row-header">
       <span class="col-dep-badge"></span><span class="col-dep-badge2"></span><span class="col-dep-time" style="font-size:11px;font-weight:900;color:#111;">帰りバス</span>
-      <span class="col-mid2" style="font-size:11px;font-weight:900;color:#333;">アトム大塚駅発</span>
-      <span class="col-mid" style="font-size:11px;font-weight:900;color:#333;">アトム毘沙門着</span>
+      <span class="col-mid2" style="font-size:11px;font-weight:900;color:#333;">アトム<br>大塚発</span>
+      <span class="col-mid" style="font-size:11px;font-weight:900;color:#333;">アトム<br>毘沙門着</span>
       <span class="col-arr">中バス発</span>
-      <span class="col-dur-cell">所要</span>
+      <span class="col-dur-cell" style="padding-left:8px;">所要</span>
     </div>`;
   }
   const nowMin = new Date().getHours()*60 + new Date().getMinutes();
