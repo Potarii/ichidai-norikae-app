@@ -1335,10 +1335,10 @@ function doSearch(){
 
     // 出発/到着モードに応じて時間帯を厳密にフィルタ
     if(!byArr){
-      // 出発モード: oi_astramはバス発時刻、それ以外は出発時刻でhour台に限定
+      // 出発モード: アトム毘沙門発(dep)時刻でhour台に限定
       if(direction==='oi_astram'){
         filteredRoutes=filteredRoutes.filter(r=>{
-          const t=r.busDep?toMin(r.busDep):toMin(r.dep);
+          const t=toMin(r.dep);
           return t>=hourStart&&t<=hourEnd;
         });
       } else {
