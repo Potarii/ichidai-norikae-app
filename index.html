@@ -439,7 +439,7 @@ const GWBUS_KAERI_WD = [
   ['14:03','14:07','こ'],['14:13','14:17','花'],['14:23','14:27','こ'],['14:33','14:37','花'],['14:43','14:47','こ'],
   ['15:03','15:07','こ'],['15:23','15:27','花'],['15:43','15:47','こ'],['15:53','15:57','花'],
   ['16:03','16:07','こ'],['16:13','16:17','花'],['16:23','16:27','こ'],['16:30','16:34','修'],
-  ['18:13','18:17','こ'],
+  ['18:13','18:17','こ'],['18:15','18:19','修'],
 ];
 // 帰路: 沼田料金所前発→大塚着 [発,着]ペア（PDFより 94便）
 const NUMATA_KAERI_WD = [
@@ -1004,7 +1004,7 @@ function calcKaeriAstram(inputMin,byArr=false){
         {type:'transport',kind:'bus',
           name:busName,
           route:useNumata?'沼田料金所前 → 大塚駅':'市立大学前 → 大塚駅',
-          time:`${fromMin(gMin)}発→${fromMin(gArr)}着`,wait:null,dep:fromMin(gMin),lineName:(!useNumata&&lineName)?lineName:null,route修Name:is修?'①広島修道大学・免許センター五日市方面利用':null},
+          time:`${fromMin(gMin)}発→${fromMin(gArr)}着`,wait:null,dep:fromMin(gMin),lineName:(!useNumata&&lineName)?lineName:null,route修Name:is修?'①修道大学免許センター(大塚停車)便':null},
         {type:'station',station:'大塚駅',time:fromMin(gArr)},
         {type:'transport',kind:'walk',name:'🚶 徒歩',route:'バス停 → アストラム大塚駅',time:'約2〜3分',wait:`${aMin-gArr}分`},
         {type:'station',station:'アストラム大塚駅',time:fromMin(aMin)},
@@ -1036,7 +1036,7 @@ function calcKaeriAstram(inputMin,byArr=false){
         {type:'transport',kind:'bus',
           name:busName2,
           route:useNumata?'沼田料金所前 → 大塚駅':'市立大学前 → 大塚駅',
-          time:`${fromMin(gMin)}発→${fromMin(gArr)}着`,wait:null,dep:fromMin(gMin),lineName:(!useNumata&&lineName)?lineName:null,route修Name:is修2?'①広島修道大学・免許センター五日市方面利用':null},
+          time:`${fromMin(gMin)}発→${fromMin(gArr)}着`,wait:null,dep:fromMin(gMin),lineName:(!useNumata&&lineName)?lineName:null,route修Name:is修2?'①修道大学免許センター(大塚停車)便':null},
         {type:'station',station:'大塚駅',time:fromMin(gArr)},
         {type:'transport',kind:'walk',name:'🚶 徒歩',route:'バス停 → アストラム大塚駅',time:'約2〜3分',wait:`${aMin-gArr}分`},
         {type:'station',station:'アストラム大塚駅',time:fromMin(aMin)},
@@ -1380,8 +1380,12 @@ function renderHourList(routes, area){
   if(isKaeriMode){
     Object.values(groupMap).forEach(idxs=>{
       if(idxs.length<2) return; // グループなし
-      const direct=idxs.find(i=>routes[i].isDirect);
-      if(direct!==undefined){ highlightIdx.add(direct); return; }
+      // 市バッジ便の中で最遅出発を優先、なければ最遅出発便
+      const directIdxs=idxs.filter(i=>routes[i].isDirect);
+      if(directIdxs.length>0){
+        const latestDirect=directIdxs.reduce((a,b)=>toMin(routes[a].dep)>toMin(routes[b].dep)?a:b);
+        highlightIdx.add(latestDirect); return;
+      }
       const latest=idxs.reduce((a,b)=>toMin(routes[a].dep)>toMin(routes[b].dep)?a:b);
       highlightIdx.add(latest);
     });
@@ -1715,6 +1719,26 @@ function showBusList(){
 }
 
 // ==================== 初期化 ====================
+
+// ==================== スワイプで時間帯切り替え ====================
+(function(){
+  const area = document.getElementById('results-area');
+  let startX = 0, startY = 0;
+  area.addEventListener('touchstart', e => {
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+  }, {passive: true});
+  area.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = e.changedTouches[0].clientY - startY;
+    // 水平方向が主で50px以上スワイプ
+    if(Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    const selH = document.getElementById('sel-hour');
+    const cur = parseInt(selH.value);
+    if(dx < 0 && cur < 23){ selH.value = String(cur+1); doSearch(); } // 左→次
+    if(dx > 0 && cur > 5){ selH.value = String(cur-1); doSearch(); } // 右→前
+  }, {passive: true});
+})();
 window.onload=()=>{
   // headerの高さをCSS変数に設定（sticky-controlsのtop計算用）
   // sticky位置を動的計算
